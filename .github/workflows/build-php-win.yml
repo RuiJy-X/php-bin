@@ -23,14 +23,14 @@ jobs:
       fail-fast: false
       matrix:
         version: ["8.3", "8.4", "8.5"]
-        os: [windows-latest]
+        os: [windows-2025]
         include:
-          - os: windows-latest
+          - os: windows-2025
             arch: x64
             spc_asset: spc-windows-x64.exe
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download SPC
         shell: bash
@@ -69,7 +69,7 @@ jobs:
           echo "PHP_LIBS=$LIBRARIES" >> $GITHUB_ENV
 
       - id: cache-spc-downloads
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ../static-php-cli/downloads
           key: spc-downloads-${{ env.PHP_EXT_HASH }}
@@ -79,6 +79,22 @@ jobs:
         run: |
           cd ../static-php-cli
           ./bin/spc.exe download --with-php=${{ matrix.version }} --for-extensions "${{ env.PHP_EXTENSIONS }}" --prefer-pre-built
+
+      # SPC 2.8.5 has no Windows zstd builder, but PHP ext/curl/config.w32
+      # requires libzstd.lib. Stage a pre-built copy into buildroot so the
+      # curl extension's config check passes.
+      - name: Stage libzstd for curl extension
+        shell: bash
+        env:
+          ZSTD_VERSION: v1.5.7
+        run: |
+          cd ..
+          curl -fsSL -o zstd.zip "https://github.com/facebook/zstd/releases/download/${ZSTD_VERSION}/zstd-${ZSTD_VERSION}-win64.zip"
+          unzip -q zstd.zip
+          mkdir -p static-php-cli/buildroot/lib static-php-cli/buildroot/include
+          cp "zstd-${ZSTD_VERSION}-win64/static/libzstd_static.lib" static-php-cli/buildroot/lib/libzstd.lib
+          cp "zstd-${ZSTD_VERSION}-win64/include/"*.h static-php-cli/buildroot/include/
+          rm -rf zstd.zip "zstd-${ZSTD_VERSION}-win64"
 
       - name: Build PHP
         run: |
@@ -107,7 +123,7 @@ jobs:
           cp ../static-php-cli/buildroot/build-libraries.json build-meta/build-libraries-${{ env.SPC_BUILD_OS }}.json
 
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           branch: update-php-${{ matrix.version }}-${{ env.SPC_BUILD_OS }}-${{ matrix.arch }}
           title: "Update PHP ${{ matrix.version }} build for ${{ env.SPC_BUILD_OS }} ${{ matrix.arch }}"

@@ -24,7 +24,7 @@ jobs:
     continue-on-error: true
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set SPC binary name
         shell: bash
@@ -137,7 +137,7 @@ jobs:
 
       # Cache downloaded source
       - id: cache-spc-downloads
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ../static-php-cli/downloads
           key: spc-downloads-${{ env.PHP_EXT_HASH }}
@@ -191,7 +191,7 @@ jobs:
           cp ../static-php-cli/buildroot/build-libraries.json build-meta/build-libraries-${{ env.SPC_BUILD_OS }}.json
 
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           branch: update-php-${{ env.PHP_VERSION }}-${{ env.SPC_BUILD_OS }}-${{ env.SPC_BUILD_ARCH }}
           title: "Update PHP ${{ env.PHP_VERSION }} build for ${{ env.SPC_BUILD_OS }} ${{ env.SPC_BUILD_ARCH }}"

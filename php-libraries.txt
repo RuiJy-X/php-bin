@@ -1,1 +1,1 @@
-libjpeg,freetype,libwebp,zstd
+libjpeg,freetype,libwebp
