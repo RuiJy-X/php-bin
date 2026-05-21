@@ -195,7 +195,7 @@ jobs:
         with:
           branch: update-php-${{ env.PHP_VERSION }}-${{ env.SPC_BUILD_OS }}-${{ env.SPC_BUILD_ARCH }}
           title: "Update PHP ${{ env.PHP_VERSION }} build for ${{ env.SPC_BUILD_OS }} ${{ env.SPC_BUILD_ARCH }}"
-          commit-message: "build"
+          commit-message: "Update PHP ${{ env.PHP_VERSION }} build for ${{ env.SPC_BUILD_OS }} ${{ env.SPC_BUILD_ARCH }}"
           body: |
             PHP: ${{ env.PHP_VERSION_FULL }}
             Exts: ${{ env.PHP_EXTENSIONS }}

@@ -110,12 +110,21 @@ jobs:
       # PHP 8.3's ext/intl/config.w32 doesn't pass /std:c++17 to MSVC (8.4+
       # does), so intl_convertcpp.cpp fails to compile. Extract php-src
       # manually and patch in /std:c++17 before SPC runs the build.
+      #
+      # The extract is run in pwsh (the workflow's default) rather than bash:
+      # when spc.exe is launched from Git Bash, MSYS path conversion mangles
+      # the tar -C path inside SPC's internal popen() and extraction fails.
+      - name: Extract PHP source (8.3 intl patch prep)
+        if: matrix.version == '8.3'
+        run: |
+          cd ../static-php-cli
+          ./bin/spc.exe extract php-src
+
       - name: Patch PHP 8.3 ext/intl for C++17 (ICU 78 compatibility)
         if: matrix.version == '8.3'
         shell: bash
         run: |
           cd ../static-php-cli
-          ./bin/spc.exe extract php-src
           sed -i 's|"/EHsc /DUNISTR_FROM_CHAR_EXPLICIT|"/std:c++17 /EHsc /DUNISTR_FROM_CHAR_EXPLICIT|' source/php-src/ext/intl/config.w32
 
       - name: Build PHP
@@ -149,7 +158,7 @@ jobs:
         with:
           branch: update-php-${{ matrix.version }}-${{ env.SPC_BUILD_OS }}-${{ matrix.arch }}
           title: "Update PHP ${{ matrix.version }} build for ${{ env.SPC_BUILD_OS }} ${{ matrix.arch }}"
-          commit-message: "build"
+          commit-message: "Update PHP ${{ matrix.version }} build for ${{ env.SPC_BUILD_OS }} ${{ matrix.arch }}"
           body: |
             PHP: ${{ env.PHP_VERSION_FULL }}
             Exts: ${{ env.PHP_EXTENSIONS }}

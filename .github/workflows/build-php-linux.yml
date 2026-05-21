@@ -130,7 +130,7 @@ jobs:
         with:
           branch: update-php-${{ matrix.version }}-${{ env.SPC_BUILD_OS }}-${{ matrix.arch }}
           title: "Update PHP ${{ matrix.version }} build for ${{ env.SPC_BUILD_OS }} ${{ matrix.arch }}"
-          commit-message: "build"
+          commit-message: "Update PHP ${{ matrix.version }} build for ${{ env.SPC_BUILD_OS }} ${{ matrix.arch }}"
           body: |
             PHP: ${{ env.PHP_VERSION_FULL }}
             Exts: ${{ env.PHP_EXTENSIONS }}
