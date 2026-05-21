@@ -43,13 +43,11 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download SPC
-        shell: bash
         run: |
           cd ..
-          curl -fsSL -o spc.exe "https://github.com/crazywhalecc/static-php-cli/releases/download/${SPC_VERSION}/${{ matrix.spc_asset }}"
-          chmod +x spc.exe
-          mkdir -p static-php-cli/bin
-          mv spc.exe static-php-cli/bin/
+          Invoke-WebRequest -Uri "https://github.com/crazywhalecc/static-php-cli/releases/download/${{ env.SPC_VERSION }}/${{ matrix.spc_asset }}" -OutFile spc.exe
+          New-Item -ItemType Directory -Force -Path static-php-cli/bin | Out-Null
+          Move-Item spc.exe static-php-cli/bin/
 
       - name: Setup system PHP
         uses: shivammathur/setup-php@v2
@@ -64,19 +62,15 @@ jobs:
           cd ../static-php-cli
           ./bin/spc.exe doctor
 
-      - name: Read PHP extensions from file
-        shell: bash
+      - name: Read PHP extensions and libraries
         run: |
-          EXTENSIONS=$(php -r "echo trim(file_get_contents('php-extensions.txt'));")
-          EXT_HASH=$(php -r "echo md5(getenv('EXTENSIONS'));")
-          echo "PHP_EXTENSIONS=$EXTENSIONS" >> $GITHUB_ENV
-          echo "PHP_EXT_HASH=$EXT_HASH" >> $GITHUB_ENV
-
-      - name: Read PHP libraries from file
-        shell: bash
-        run: |
-          LIBRARIES=$(php -r "echo trim(file_get_contents('php-libraries.txt'));")
-          echo "PHP_LIBS=$LIBRARIES" >> $GITHUB_ENV
+          $extensions = php -r "echo trim(file_get_contents('php-extensions.txt'));"
+          $env:EXTENSIONS = $extensions
+          $extHash = php -r "echo md5(getenv('EXTENSIONS'));"
+          $libraries = php -r "echo trim(file_get_contents('php-libraries.txt'));"
+          Add-Content -Path $env:GITHUB_ENV -Value "PHP_EXTENSIONS=$extensions"
+          Add-Content -Path $env:GITHUB_ENV -Value "PHP_EXT_HASH=$extHash"
+          Add-Content -Path $env:GITHUB_ENV -Value "PHP_LIBS=$libraries"
 
       - id: cache-spc-downloads
         uses: actions/cache@v5
@@ -94,38 +88,28 @@ jobs:
       # requires libzstd.lib. Stage a pre-built copy into buildroot so the
       # curl extension's config check passes.
       - name: Stage libzstd for curl extension
-        shell: bash
         env:
           ZSTD_VERSION: v1.5.7
         run: |
           cd ..
-          curl -fsSL -o zstd.zip "https://github.com/facebook/zstd/releases/download/${ZSTD_VERSION}/zstd-${ZSTD_VERSION}-win64.zip"
-          unzip -q zstd.zip
-          mkdir -p static-php-cli/buildroot/lib static-php-cli/buildroot/include
-          cp "zstd-${ZSTD_VERSION}-win64/static/libzstd_static.lib" static-php-cli/buildroot/lib/libzstd.lib
-          cp "zstd-${ZSTD_VERSION}-win64/include/"*.h static-php-cli/buildroot/include/
-          rm -rf zstd.zip "zstd-${ZSTD_VERSION}-win64"
+          Invoke-WebRequest -Uri "https://github.com/facebook/zstd/releases/download/${env:ZSTD_VERSION}/zstd-${env:ZSTD_VERSION}-win64.zip" -OutFile zstd.zip
+          Expand-Archive -Path zstd.zip -DestinationPath .
+          New-Item -ItemType Directory -Force -Path "static-php-cli/buildroot/lib", "static-php-cli/buildroot/include" | Out-Null
+          Copy-Item "zstd-${env:ZSTD_VERSION}-win64/static/libzstd_static.lib" "static-php-cli/buildroot/lib/libzstd.lib"
+          Copy-Item "zstd-${env:ZSTD_VERSION}-win64/include/*.h" "static-php-cli/buildroot/include/"
+          Remove-Item -Recurse -Force zstd.zip, "zstd-${env:ZSTD_VERSION}-win64"
 
       # SPC's bundled icu-static-win is ICU 78, whose headers require C++17.
       # PHP 8.3's ext/intl/config.w32 doesn't pass /std:c++17 to MSVC (8.4+
       # does), so intl_convertcpp.cpp fails to compile. Extract php-src
       # manually and patch in /std:c++17 before SPC runs the build.
-      #
-      # The extract is run in pwsh (the workflow's default) rather than bash:
-      # when spc.exe is launched from Git Bash, MSYS path conversion mangles
-      # the tar -C path inside SPC's internal popen() and extraction fails.
-      - name: Extract PHP source (8.3 intl patch prep)
+      - name: Patch PHP 8.3 ext/intl for C++17 (ICU 78 compatibility)
         if: matrix.version == '8.3'
         run: |
           cd ../static-php-cli
           ./bin/spc.exe extract php-src
-
-      - name: Patch PHP 8.3 ext/intl for C++17 (ICU 78 compatibility)
-        if: matrix.version == '8.3'
-        shell: bash
-        run: |
-          cd ../static-php-cli
-          sed -i 's|"/EHsc /DUNISTR_FROM_CHAR_EXPLICIT|"/std:c++17 /EHsc /DUNISTR_FROM_CHAR_EXPLICIT|' source/php-src/ext/intl/config.w32
+          $f = 'source/php-src/ext/intl/config.w32'
+          (Get-Content -Path $f -Raw) -replace '"/EHsc /DUNISTR_FROM_CHAR_EXPLICIT', '"/std:c++17 /EHsc /DUNISTR_FROM_CHAR_EXPLICIT' | Set-Content -Path $f -NoNewline
 
       - name: Build PHP
         run: |
@@ -133,25 +117,20 @@ jobs:
           ./bin/spc.exe build --build-cli "${{ env.PHP_EXTENSIONS }}" --with-libs="${{ env.PHP_LIBS }}" --debug
 
       - name: Get built PHP version
-        shell: bash
         run: |
-          PHP_VERSION_FULL=$(../static-php-cli/buildroot/bin/php.exe -r "echo PHP_VERSION;")
-          echo "PHP_VERSION_FULL=$PHP_VERSION_FULL" >> $GITHUB_ENV
+          $phpVersionFull = ../static-php-cli/buildroot/bin/php.exe -r "echo PHP_VERSION;"
+          Add-Content -Path $env:GITHUB_ENV -Value "PHP_VERSION_FULL=$phpVersionFull"
 
       - name: Create bin directories
-        shell: bash
         run: |
-          mkdir -p bin/${{ env.SPC_BUILD_OS }}/${{ matrix.arch }}
-          mkdir -p license-files
-          mkdir -p build-meta
+          New-Item -ItemType Directory -Force -Path "bin/${{ env.SPC_BUILD_OS }}/${{ matrix.arch }}", "license-files", "build-meta" | Out-Null
 
       - name: Zip PHP binary, copy metadata
-        shell: bash
         run: |
-          powershell Compress-Archive -Path "../static-php-cli/buildroot/bin/php.exe" -DestinationPath "bin/${{ env.SPC_BUILD_OS }}/${{ matrix.arch }}/php-${{ matrix.version }}.zip" -Force
-          cp ../static-php-cli/buildroot/license/* license-files/
-          cp ../static-php-cli/buildroot/build-extensions.json build-meta/build-extensions-${{ env.SPC_BUILD_OS }}.json
-          cp ../static-php-cli/buildroot/build-libraries.json build-meta/build-libraries-${{ env.SPC_BUILD_OS }}.json
+          Compress-Archive -Path "../static-php-cli/buildroot/bin/php.exe" -DestinationPath "bin/${{ env.SPC_BUILD_OS }}/${{ matrix.arch }}/php-${{ matrix.version }}.zip" -Force
+          Copy-Item ../static-php-cli/buildroot/license/* license-files/
+          Copy-Item ../static-php-cli/buildroot/build-extensions.json build-meta/build-extensions-${{ env.SPC_BUILD_OS }}.json
+          Copy-Item ../static-php-cli/buildroot/build-libraries.json build-meta/build-libraries-${{ env.SPC_BUILD_OS }}.json
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v8
