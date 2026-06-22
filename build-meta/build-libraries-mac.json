@@ -9,6 +9,8 @@
     "bzip2",
     "openssl",
     "libsodium",
+    "ncurses",
+    "libedit",
     "curl",
     "libpng",
     "libwebp",
@@ -17,5 +19,6 @@
     "icu",
     "onig",
     "sqlite",
-    "libzip"
+    "libzip",
+    "postgresql"
 ]
