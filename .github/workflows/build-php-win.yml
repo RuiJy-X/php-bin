@@ -33,9 +33,9 @@ jobs:
       fail-fast: false
       matrix:
         version: ${{ fromJSON((github.event.inputs.version || 'all') == 'all' && '["8.3","8.4","8.5"]' || format('["{0}"]', github.event.inputs.version)) }}
-        os: [windows-2025]
+        os: [windows-2022]
         include:
-          - os: windows-2025
+          - os: windows-2022
             arch: x64
             spc_asset: spc-windows-x64.exe
 
