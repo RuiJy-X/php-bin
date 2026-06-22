@@ -24,5 +24,8 @@
     "sodium",
     "tokenizer",
     "xml",
-    "zip"
+    "zip",
+    "xmlreader",
+    "pgsql",
+    "pdo_pgsql"
 ]
