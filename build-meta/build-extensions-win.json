@@ -25,5 +25,9 @@
     "sockets",
     "sodium",
     "tokenizer",
-    "zip"
+    "zip",
+    "xmlreader",
+    "pgsql",
+    "pdo_pgsql",
+    "xmlwriter"
 ]
